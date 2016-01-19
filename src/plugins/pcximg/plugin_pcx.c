@@ -1,19 +1,35 @@
-
+// Include of its own corresponding.h file.
 #include "plugin_pcx.h"
 
+// Other #includes.
 #include <imageloader_plugin.h>
 
+// Library #includes. (When possible, use <> instead of "")
 #include <inttypes.h>
+
+// Private numeric constants in #defines.
+#define PCXSIGSIZE 8
+
+// Private macros.
+#define pcx_error_occured(pcx_ptr) setjmp(pcx_jmpbuf(pcx_ptr)) != 0
+
+// Definition of opaque types, that were declared as incomplete type in the corresponding.h file.
+// Private type definitions.
+typedef struct
+{
+	pcx_structp pcx_ptr;
+	pcx_infop info_ptr;
+} PCXPointers;
+
+// Definition of private constants(static const).
+// Definition of private variables at file scope(static).
+// Declaration of private functions(declared as static type func(type param);)
+static pcx_voidp pcxMalloc_fn(pcx_structp pcx_ptr, pcx_size_t size);
+// Definition of all functions, in alphabetical order
 
 // Parts of this code are based on this tutorial: http://www.piko3d.net/tutorials/libpcx-tutorial-loading-pcx-files-from-streams/
 
-typedef struct
-{
-    pcx_structp pcx_ptr;
-    pcx_infop info_ptr;
-} PCXPointers;
 
-#define pcx_error_occured(pcx_ptr) setjmp(pcx_jmpbuf(pcx_ptr)) != 0
 
 static pcx_voidp pcx_malloc_fn(pcx_structp pcx_ptr, pcx_size_t size)
 {
@@ -60,7 +76,7 @@ static void pcx_warning_fn(pcx_structp pcx_ptr, pcx_const_charp message)
 }
 
 
-#define PCXSIGSIZE 8
+
 static int IMGLOAD_CALLBACK pcx_probe(ImgloadPlugin plugin, ImgloadImage img)
 {
     pcx_byte pcxsig[PCXSIGSIZE];
