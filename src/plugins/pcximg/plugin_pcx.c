@@ -5,166 +5,166 @@
 
 #include <inttypes.h>
 
-// Parts of this code are based on this tutorial: http://www.piko3d.net/tutorials/libpng-tutorial-loading-png-files-from-streams/
+// Parts of this code are based on this tutorial: http://www.piko3d.net/tutorials/libpcx-tutorial-loading-pcx-files-from-streams/
 
 typedef struct
 {
-    png_structp png_ptr;
-    png_infop info_ptr;
-} PNGPointers;
+    pcx_structp pcx_ptr;
+    pcx_infop info_ptr;
+} PCXPointers;
 
-#define png_error_occured(png_ptr) setjmp(png_jmpbuf(png_ptr)) != 0
+#define pcx_error_occured(pcx_ptr) setjmp(pcx_jmpbuf(pcx_ptr)) != 0
 
-static png_voidp png_malloc_fn(png_structp png_ptr, png_size_t size)
+static pcx_voidp pcx_malloc_fn(pcx_structp pcx_ptr, pcx_size_t size)
 {
-    ImgloadPlugin plugin = (ImgloadPlugin)png_get_mem_ptr(png_ptr);
+    ImgloadPlugin plugin = (ImgloadPlugin)pcx_get_mem_ptr(pcx_ptr);
 
     return imgload_plugin_realloc(plugin, NULL, size);
 }
 
-static void png_free_fn(png_structp png_ptr, png_voidp ptr)
+static void pcx_free_fn(pcx_structp pcx_ptr, pcx_voidp ptr)
 {
-    ImgloadPlugin plugin = (ImgloadPlugin)png_get_mem_ptr(png_ptr);
+    ImgloadPlugin plugin = (ImgloadPlugin)pcx_get_mem_ptr(pcx_ptr);
 
     imgload_plugin_free(plugin, ptr);
 }
 
 
-static void png_user_read_data(png_structp png_ptr, png_bytep data, png_size_t length)
+static void pcx_user_read_data(pcx_structp pcx_ptr, pcx_bytep data, pcx_size_t length)
 {
-    ImgloadImage img = (ImgloadImage)png_get_io_ptr(png_ptr);
+    ImgloadImage img = (ImgloadImage)pcx_get_io_ptr(pcx_ptr);
 
     size_t read = imgload_plugin_image_read(img, (uint8_t*)data, length);
 
     if (read != length)
     {
-        png_error(png_ptr, "Read Error");
+        pcx_error(pcx_ptr, "Read Error");
     }
 }
 
 
-static void png_error_fn(png_structp png_ptr, png_const_charp message)
+static void pcx_error_fn(pcx_structp pcx_ptr, pcx_const_charp message)
 {
-    ImgloadPlugin plugin = (ImgloadPlugin)png_get_error_ptr(png_ptr);
+    ImgloadPlugin plugin = (ImgloadPlugin)pcx_get_error_ptr(pcx_ptr);
 
     imgload_plugin_log(plugin, IMGLOAD_LOG_ERROR, message);
     
-    longjmp(png_jmpbuf(png_ptr), 1);
+    longjmp(pcx_jmpbuf(pcx_ptr), 1);
 }
 
-static void png_warning_fn(png_structp png_ptr, png_const_charp message)
+static void pcx_warning_fn(pcx_structp pcx_ptr, pcx_const_charp message)
 {
-    ImgloadPlugin plugin = (ImgloadPlugin)png_get_error_ptr(png_ptr);
+    ImgloadPlugin plugin = (ImgloadPlugin)pcx_get_error_ptr(pcx_ptr);
 
     imgload_plugin_log(plugin, IMGLOAD_LOG_WARNING, message);
 }
 
 
-#define PNGSIGSIZE 8
-static int IMGLOAD_CALLBACK png_probe(ImgloadPlugin plugin, ImgloadImage img)
+#define PCXSIGSIZE 8
+static int IMGLOAD_CALLBACK pcx_probe(ImgloadPlugin plugin, ImgloadImage img)
 {
-    png_byte pngsig[PNGSIGSIZE];
+    pcx_byte pcxsig[PCXSIGSIZE];
 
-    if (imgload_plugin_image_read(img, pngsig, PNGSIGSIZE) != PNGSIGSIZE)
+    if (imgload_plugin_image_read(img, pcxsig, PCXSIGSIZE) != PCXSIGSIZE)
     {
         return 0;
     }
 
-    return png_sig_cmp(pngsig, 0, PNGSIGSIZE) == 0;
+    return pcx_sig_cmp(pcxsig, 0, PCXSIGSIZE) == 0;
 }
 
-static ImgloadErrorCode IMGLOAD_CALLBACK png_init_image(ImgloadPlugin plugin, ImgloadImage img)
+static ImgloadErrorCode IMGLOAD_CALLBACK pcx_init_image(ImgloadPlugin plugin, ImgloadImage img)
 {
-    png_structp png_ptr = png_create_read_struct_2(PNG_LIBPNG_VER_STRING, plugin, png_error_fn, png_warning_fn, plugin, png_malloc_fn, png_free_fn);
-    if (png_ptr == NULL)
+    pcx_structp pcx_ptr = pcx_create_read_struct_2(PCX_LIBPCX_VER_STRING, plugin, pcx_error_fn, pcx_warning_fn, plugin, pcx_malloc_fn, pcx_free_fn);
+    if (pcx_ptr == NULL)
     {
         return IMGLOAD_ERR_PLUGIN_ERROR;
     }
 
-    png_infop png_info = png_create_info_struct(png_ptr);
-    if (png_info == NULL)
+    pcx_infop pcx_info = pcx_create_info_struct(pcx_ptr);
+    if (pcx_info == NULL)
     {
-        png_destroy_read_struct(&png_ptr, NULL, NULL);
+        pcx_destroy_read_struct(&pcx_ptr, NULL, NULL);
         return IMGLOAD_ERR_PLUGIN_ERROR;
     }
 
-    if (png_error_occured(png_ptr))
+    if (pcx_error_occured(pcx_ptr))
     {
-        // libPNG has caused an error, free memory and return
-        png_destroy_read_struct(&png_ptr, &png_info, NULL);
+        // libPCX has caused an error, free memory and return
+        pcx_destroy_read_struct(&pcx_ptr, &pcx_info, NULL);
         return IMGLOAD_ERR_PLUGIN_ERROR;
     }
 
-    png_set_read_fn(png_ptr, img, png_user_read_data);
+    pcx_set_read_fn(pcx_ptr, img, pcx_user_read_data);
 
-    png_set_sig_bytes(png_ptr, PNGSIGSIZE);
+    pcx_set_sig_bytes(pcx_ptr, PCXSIGSIZE);
 
-    png_read_info(png_ptr, png_info);
+    pcx_read_info(pcx_ptr, pcx_info);
 
     // Info has been read
-    png_uint_32 img_width = png_get_image_width(png_ptr, png_info);
-    png_uint_32 img_height = png_get_image_height(png_ptr, png_info);
+    pcx_uint_32 img_width = pcx_get_image_width(pcx_ptr, pcx_info);
+    pcx_uint_32 img_height = pcx_get_image_height(pcx_ptr, pcx_info);
 
-    png_uint_32 bitdepth = png_get_bit_depth(png_ptr, png_info);
-    png_uint_32 color_type = png_get_color_type(png_ptr, png_info);
+    pcx_uint_32 bitdepth = pcx_get_bit_depth(pcx_ptr, pcx_info);
+    pcx_uint_32 color_type = pcx_get_color_type(pcx_ptr, pcx_info);
 
     if (bitdepth == 16)
     {
-        png_set_strip_16(png_ptr);
+        pcx_set_strip_16(pcx_ptr);
     }
 
     switch (color_type) {
-    case PNG_COLOR_TYPE_PALETTE:
+    case PCX_COLOR_TYPE_PALETTE:
         // Expand palette to rgb
-        png_set_palette_to_rgb(png_ptr);
+        pcx_set_palette_to_rgb(pcx_ptr);
         break;
-    case PNG_COLOR_TYPE_GRAY:
+    case PCX_COLOR_TYPE_GRAY:
         if (bitdepth < 8)
-            png_set_expand_gray_1_2_4_to_8(png_ptr);
+            pcx_set_expand_gray_1_2_4_to_8(pcx_ptr);
         break;
     }
 
     // if the image has a transperancy set.. convert it to a full Alpha channel..
     // Also make sure that is was RGB before
-    if (png_get_valid(png_ptr, png_info, PNG_INFO_tRNS))
+    if (pcx_get_valid(pcx_ptr, pcx_info, PCX_INFO_tRNS))
     {
-        png_set_tRNS_to_alpha(png_ptr);
+        pcx_set_tRNS_to_alpha(pcx_ptr);
     }
 
     // Update the structure so we can use it later
-    png_read_update_info(png_ptr, png_info);
+    pcx_read_update_info(pcx_ptr, pcx_info);
 
-    bitdepth = png_get_bit_depth(png_ptr, png_info);
-    uint32_t channels = png_get_channels(png_ptr, png_info);
-    color_type = png_get_color_type(png_ptr, png_info);
+    bitdepth = pcx_get_bit_depth(pcx_ptr, pcx_info);
+    uint32_t channels = pcx_get_channels(pcx_ptr, pcx_info);
+    color_type = pcx_get_color_type(pcx_ptr, pcx_info);
 
     if (bitdepth != 8)
     {
         // Any bitdepth != 8 is not supported
-        png_destroy_read_struct(&png_ptr, &png_info, NULL);
+        pcx_destroy_read_struct(&pcx_ptr, &pcx_info, NULL);
 
-        imgload_plugin_log(plugin, IMGLOAD_LOG_ERROR, "PNG has a bitdepth of %"PRIu32" but only a bitdepth of 8 is supported by this plugin!", bitdepth);
+        imgload_plugin_log(plugin, IMGLOAD_LOG_ERROR, "PCX has a bitdepth of %"PRIu32" but only a bitdepth of 8 is supported by this plugin!", bitdepth);
 
         return IMGLOAD_ERR_UNSUPPORTED_FORMAT;
     }
 
-    // Convert PNG format to imageloader. Also validates channel number
+    // Convert PCX format to imageloader. Also validates channel number
     ImgloadFormat format;
-    if (color_type == PNG_COLOR_TYPE_RGB && channels == 3)
+    if (color_type == PCX_COLOR_TYPE_RGB && channels == 3)
     {
         format = IMGLOAD_FORMAT_R8G8B8;
-    } else if (color_type == PNG_COLOR_TYPE_RGBA && channels == 4)
+    } else if (color_type == PCX_COLOR_TYPE_RGBA && channels == 4)
     {
         format = IMGLOAD_FORMAT_R8G8B8A8;
-    } else if (color_type == PNG_COLOR_TYPE_GRAY && channels == 1)
+    } else if (color_type == PCX_COLOR_TYPE_GRAY && channels == 1)
     {
         format = IMGLOAD_FORMAT_GRAY8;
     } else
     {
         // Currently no other format is supported
-        png_destroy_read_struct(&png_ptr, &png_info, NULL);
+        pcx_destroy_read_struct(&pcx_ptr, &pcx_info, NULL);
 
-        imgload_plugin_log(plugin, IMGLOAD_LOG_ERROR, "PNG has an unsupported data format!");
+        imgload_plugin_log(plugin, IMGLOAD_LOG_ERROR, "PCX has an unsupported data format!");
 
         return IMGLOAD_ERR_UNSUPPORTED_FORMAT;
     }
@@ -177,49 +177,49 @@ static ImgloadErrorCode IMGLOAD_CALLBACK png_init_image(ImgloadPlugin plugin, Im
     imgload_plugin_image_set_property(img, 0, IMGLOAD_PROPERTY_WIDTH, IMGLOAD_PROPERTY_TYPE_UINT32, &img_width);
     imgload_plugin_image_set_property(img, 0, IMGLOAD_PROPERTY_HEIGHT, IMGLOAD_PROPERTY_TYPE_UINT32, &img_height);
 
-    // PNGs are always 2D so set depth to 1
+    // PCXs are always 2D so set depth to 1
     uint32_t one = 1;
     imgload_plugin_image_set_property(img, 0, IMGLOAD_PROPERTY_DEPTH, IMGLOAD_PROPERTY_TYPE_UINT32, &one);
 
-    PNGPointers* pointers = (PNGPointers*)imgload_plugin_realloc(plugin, NULL, sizeof(PNGPointers));
+    PCXPointers* pointers = (PCXPointers*)imgload_plugin_realloc(plugin, NULL, sizeof(PCXPointers));
     if (pointers == NULL)
     {
         // Currently no other format is supported
-        png_destroy_read_struct(&png_ptr, &png_info, NULL);
+        pcx_destroy_read_struct(&pcx_ptr, &pcx_info, NULL);
         return IMGLOAD_ERR_OUT_OF_MEMORY;
     }
 
-    pointers->png_ptr = png_ptr;
-    pointers->info_ptr = png_info;
+    pointers->pcx_ptr = pcx_ptr;
+    pointers->info_ptr = pcx_info;
 
     imgload_plugin_image_set_data(img, pointers);
     return IMGLOAD_ERR_NO_ERROR;
 }
 
-static ImgloadErrorCode IMGLOAD_CALLBACK png_read_data(ImgloadPlugin plugin, ImgloadImage img)
+static ImgloadErrorCode IMGLOAD_CALLBACK pcx_read_data(ImgloadPlugin plugin, ImgloadImage img)
 {
-    PNGPointers* pointers = (PNGPointers*)imgload_plugin_image_get_data(img);
+    PCXPointers* pointers = (PCXPointers*)imgload_plugin_image_get_data(img);
 
-    png_structp png_ptr = pointers->png_ptr;
-    png_infop png_info = pointers->info_ptr;
+    pcx_structp pcx_ptr = pointers->pcx_ptr;
+    pcx_infop pcx_info = pointers->info_ptr;
 
-    png_uint_32 img_width = png_get_image_width(png_ptr, png_info);
-    png_uint_32 img_height = png_get_image_height(png_ptr, png_info);
+    pcx_uint_32 img_width = pcx_get_image_width(pcx_ptr, pcx_info);
+    pcx_uint_32 img_height = pcx_get_image_height(pcx_ptr, pcx_info);
 
     //Here's one of the pointers we've defined in the error handler section:
     //Array of row pointers. One for every row.
-    png_bytepp rowPtrs = (png_bytepp)imgload_plugin_realloc(plugin, NULL, img_height * sizeof(png_bytep));
+    pcx_bytepp rowPtrs = (pcx_bytepp)imgload_plugin_realloc(plugin, NULL, img_height * sizeof(pcx_bytep));
     if (rowPtrs == NULL)
     {
         return IMGLOAD_ERR_OUT_OF_MEMORY;
     }
 
     //This is the length in bytes, of one row.
-    size_t stride = png_get_rowbytes(png_ptr, png_info);
+    size_t stride = pcx_get_rowbytes(pcx_ptr, pcx_info);
     size_t total_size = img_height * stride;
 
     //Allocate a buffer with enough space.
-    png_byte* data = (png_byte*)imgload_plugin_realloc(plugin, NULL, total_size);
+    pcx_byte* data = (pcx_byte*)imgload_plugin_realloc(plugin, NULL, total_size);
     if (data == NULL)
     {
         imgload_plugin_free(plugin, rowPtrs);
@@ -234,7 +234,7 @@ static ImgloadErrorCode IMGLOAD_CALLBACK png_read_data(ImgloadPlugin plugin, Img
         rowPtrs[i] = data + q;
     }
 
-    if (png_error_occured(png_ptr))
+    if (pcx_error_occured(pcx_ptr))
     {
         // Something went wrong, PANIC!!!
         imgload_plugin_free(plugin, rowPtrs);
@@ -246,7 +246,7 @@ static ImgloadErrorCode IMGLOAD_CALLBACK png_read_data(ImgloadPlugin plugin, Img
     //And here it is! The actuall reading of the image!
     //Read the imagedata and write it to the adresses pointed to
     //by rowptrs (in other words: our image databuffer)
-    png_read_image(png_ptr, rowPtrs);
+    pcx_read_image(pcx_ptr, rowPtrs);
 
     // Everything should be fine here, now set the data and go home
     ImgloadImageData img_data;
@@ -267,11 +267,11 @@ static ImgloadErrorCode IMGLOAD_CALLBACK png_read_data(ImgloadPlugin plugin, Img
     return err;
 }
 
-static ImgloadErrorCode IMGLOAD_CALLBACK png_deinit_image(ImgloadPlugin plugin, ImgloadImage img)
+static ImgloadErrorCode IMGLOAD_CALLBACK pcx_deinit_image(ImgloadPlugin plugin, ImgloadImage img)
 {
-    PNGPointers* pointers = (PNGPointers*)imgload_plugin_image_get_data(img);
+    PCXPointers* pointers = (PCXPointers*)imgload_plugin_image_get_data(img);
 
-    png_destroy_read_struct(&pointers->png_ptr, &pointers->info_ptr, NULL);
+    pcx_destroy_read_struct(&pointers->pcx_ptr, &pointers->info_ptr, NULL);
     imgload_plugin_free(plugin, pointers);
 
     return IMGLOAD_ERR_NO_ERROR;
@@ -279,14 +279,14 @@ static ImgloadErrorCode IMGLOAD_CALLBACK png_deinit_image(ImgloadPlugin plugin, 
 
 ImgloadErrorCode IMGLOAD_CALLBACK pcx_plugin_loader(ImgloadPlugin plugin, void* parameter)
 {
-    imgload_plugin_set_info(plugin, "png", "libPNG plugin", "Loads PNG files using libpng");
+    imgload_plugin_set_info(plugin, "pcx", "libPCX plugin", "Loads PCX files using libpcx");
 
-    imgload_plugin_callback_probe(plugin, png_probe);
+    imgload_plugin_callback_probe(plugin, pcx_probe);
 
-    imgload_plugin_callback_init_image(plugin, png_init_image);
-    imgload_plugin_callback_deinit_image(plugin, png_deinit_image);
+    imgload_plugin_callback_init_image(plugin, pcx_init_image);
+    imgload_plugin_callback_deinit_image(plugin, pcx_deinit_image);
 
-    imgload_plugin_callback_read_data(plugin, png_read_data);
+    imgload_plugin_callback_read_data(plugin, pcx_read_data);
 
     return IMGLOAD_ERR_NO_ERROR;
 }
